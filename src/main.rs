@@ -7,9 +7,21 @@ use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
 use tokio_postgres::NoTls;
 use models::{OrderSearch, Order, Orders};
 use dotenv::dotenv;
-use std::env;
+use std::{env, path::PathBuf};
+use rocket::fs::NamedFile;
+use std::path::Path;
 
 #[macro_use] extern crate rocket;
+
+#[get("/")]
+async fn index() -> Option<NamedFile> {
+    NamedFile::open(Path::new("public/index.html")).await.ok()
+}
+
+#[get("/<file..>",  rank = 2)]
+async fn files(file: PathBuf) -> Option<NamedFile> {
+    NamedFile::open(Path::new("public/").join(file)).await.ok()
+}
 
 #[get("/?<previous_token>&<next_token>&<offset>&<limit>")]
 async fn get_orders(pool: &State<Pool>, previous_token: Option<String>, next_token: Option<String>, offset: Option<i32>, limit: Option<i32>) -> Json<Orders> {
@@ -21,10 +33,6 @@ async fn get_orders(pool: &State<Pool>, previous_token: Option<String>, next_tok
     };
     let mut client = pool.get().await.unwrap();
     let orders = repositoy::get_orders(&mut client, &search).await.unwrap();
-    /*let previous_token = orders.get(0).map(|order| order.id.clone());
-    let last_index = (search.limit - 1) as usize;
-    let next_token = orders.get(last_index).map(|order| order.id.clone());
-    Json(Orders { orders, previous_token, next_token })*/
     Json(orders)
 }
 
@@ -49,4 +57,5 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(pool)
         .mount("/orders", routes![get_orders, get_order_by_id])
+        .mount("/", routes![index, files])
 }
