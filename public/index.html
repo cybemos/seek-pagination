@@ -1,3 +1,44 @@
 <body>
     <h1>Orders</h1>
+    <button onclick="fetchOrders('previous')">Previous orders</button>
+    <button onclick="fetchOrders('next')">Next orders</button>
+    <table id="orders"></table>
+    <style>
+        table, th, td {
+            border: 1px solid;
+        }
+    </style>
+    <script>
+        let previous_token, next_token;
+        function fetchOrders(a) {
+            const params = {};
+            if (previous_token && a === 'previous') {
+                params.previous_token = previous_token;
+            }
+            if (next_token && a === 'next') {
+                params.next_token = next_token;
+            }
+            const myRequest = new Request("orders?" + new URLSearchParams(params));
+            fetch(myRequest)
+                .then(response => response.json())
+                .then(response => {
+                    previous_token = response.previous_token;
+                    next_token = response.next_token;
+                    let ordersNode = document.getElementById("orders");
+                    ordersNode.textContent = '';
+                    response.orders.forEach(order => {
+                        let tr = document.createElement("tr");
+                        let order_id = document.createElement("th");
+                        let creation_date = document.createElement("th");
+                        order_id.innerText = order.id;
+                        creation_date.innerText = order.creation_date;
+                        tr.appendChild(order_id);
+                        tr.appendChild(creation_date);
+                        ordersNode.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error(err));
+        }
+        fetchOrders();
+    </script>
 </body>
