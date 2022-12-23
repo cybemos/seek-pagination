@@ -5,6 +5,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     DB(tokio_postgres::Error),
+    Pool(deadpool_postgres::PoolError)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
