@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+pub enum Error {
+    DB(tokio_postgres::Error),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Orders {
     pub orders: Vec<Order>,

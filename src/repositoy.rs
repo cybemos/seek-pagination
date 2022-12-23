@@ -1,7 +1,7 @@
-use crate::models::{OrderSearch, Order, Orders};
+use crate::models::{OrderSearch, Order, Orders, Error, Result};
 use deadpool_postgres::Object as Client;
-use core::result::Result;
-use tokio_postgres::{Error, Row};
+use tokio_postgres::Row;
+use chrono::{DateTime, Utc};
 
 const GET_ORDERS_QUERY: &str = "SELECT id, creation_date, update_date
 FROM \"order\"
@@ -24,14 +24,14 @@ const GET_ORDER_BY_ID_QUERY: &str = "SELECT id, creation_date, update_date
 FROM \"order\"
 where id = $1";
 
-pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders, Error> {
+pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders> {
     let offset = search.offset as i64;
     let limit = search.limit as i64;
     let orders = match &search.next_token {
         None => {
             match &search.previous_token {
                 None => {
-                    let rows = client.query(GET_ORDERS_QUERY, &[&offset, &limit]).await?;
+                    let rows = client.query(GET_ORDERS_QUERY, &[&offset, &limit]).await.map_err(|err| Error::DB(err))?;
                     let orders = rows.iter().map(|row| row_to_order(row)).collect::<Vec<_>>();
                     orders
                 },
@@ -39,7 +39,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders,
                     let last_order = get_order_by_id(client, id).await?;
                     let rows = client.query(GET_ORDERS_QUERY2, &[
                         &offset, &limit, &last_order.creation_date, &last_order.id
-                    ]).await?;
+                    ]).await.map_err(|err| Error::DB(err))?;
                     let orders = rows.iter().rev().map(|row| row_to_order(row)).collect::<Vec<_>>();
                     orders
                 },
@@ -49,7 +49,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders,
             let last_order = get_order_by_id(client, id).await?;
             let rows = client.query(GET_ORDERS_QUERY1, &[
                 &offset, &limit, &last_order.creation_date, &last_order.id
-            ]).await?;
+            ]).await.map_err(|err| Error::DB(err))?;
             let orders = rows.iter().map(|row| row_to_order(row)).collect::<Vec<_>>();
             orders
         },
@@ -62,16 +62,16 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders,
     Ok(Orders { orders, previous_token, next_token })
 }
 
-pub async fn get_order_by_id(client: &Client, id: &String) -> Result<Order, Error> {
-    let row = client.query_one(GET_ORDER_BY_ID_QUERY,  &[&id]).await?;
+pub async fn get_order_by_id(client: &Client, id: &String) -> Result<Order> {
+    let row = client.query_one(GET_ORDER_BY_ID_QUERY,  &[&id]).await.map_err(|err| Error::DB(err))?;
     let order = row_to_order(&row);
     Ok(order)
 }
 
 fn row_to_order(row: &Row) -> Order {
     let id: String = row.get(0);
-    let creation_date: chrono::DateTime<chrono::Utc> = row.get(1);
-    let update_date: chrono::DateTime<chrono::Utc>  = row.get(2);
+    let creation_date: DateTime<Utc> = row.get(1);
+    let update_date: DateTime<Utc>  = row.get(2);
     return Order {
         id,
         creation_date,
