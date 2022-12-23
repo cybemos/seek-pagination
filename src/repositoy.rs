@@ -24,7 +24,7 @@ const GET_ORDER_BY_ID_QUERY: &str = "SELECT id, creation_date, update_date
 FROM \"order\"
 where id = $1";
 
-pub async fn get_orders(client: &mut Client, search: &OrderSearch) -> Result<Orders, Error> {
+pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders, Error> {
     let offset = search.offset as i64;
     let limit = search.limit as i64;
     let orders = match &search.next_token {
@@ -62,7 +62,7 @@ pub async fn get_orders(client: &mut Client, search: &OrderSearch) -> Result<Ord
     Ok(Orders { orders, previous_token, next_token })
 }
 
-pub async fn get_order_by_id(client: &mut Client, id: &String) -> Result<Order, Error> {
+pub async fn get_order_by_id(client: &Client, id: &String) -> Result<Order, Error> {
     let row = client.query_one(GET_ORDER_BY_ID_QUERY,  &[&id]).await?;
     let order = row_to_order(&row);
     Ok(order)

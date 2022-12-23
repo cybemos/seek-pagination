@@ -1,7 +1,8 @@
 <body>
     <h1>Orders</h1>
-    <button onclick="fetchOrders('previous')">Previous orders</button>
-    <button onclick="fetchOrders('next')">Next orders</button>
+    <button id="previous" disabled onclick="fetchOrders('previous')">Previous orders</button>
+    <button id="next" onclick="fetchOrders('next')">Next orders</button>
+    <div id="page">Page 1</div>
     <table id="orders"></table>
     <style>
         table, th, td {
@@ -9,14 +10,16 @@
         }
     </style>
     <script>
-        let previous_token, next_token;
+        let previous_token, next_token, page = 1;
         function fetchOrders(a) {
-            const params = {};
+            const params = { limit: 20 };
             if (previous_token && a === 'previous') {
                 params.previous_token = previous_token;
+                page -= 1;
             }
             if (next_token && a === 'next') {
                 params.next_token = next_token;
+                page += 1;
             }
             const myRequest = new Request("orders?" + new URLSearchParams(params));
             fetch(myRequest)
@@ -24,6 +27,10 @@
                 .then(response => {
                     previous_token = response.previous_token;
                     next_token = response.next_token;
+                    let pageNode = document.getElementById("page");
+                    pageNode.textContent = `page ${page}`;
+                    let previousNode = document.getElementById("previous");
+                    previousNode.disabled = page <= 1;
                     let ordersNode = document.getElementById("orders");
                     ordersNode.textContent = '';
                     response.orders.forEach(order => {

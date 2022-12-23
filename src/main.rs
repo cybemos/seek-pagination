@@ -31,15 +31,15 @@ async fn get_orders(pool: &State<Pool>, previous_token: Option<String>, next_tok
         offset: offset.unwrap_or(0),
         limit: limit.unwrap_or(10)
     };
-    let mut client = pool.get().await.unwrap();
-    let orders = repositoy::get_orders(&mut client, &search).await.unwrap();
+    let client = pool.get().await.unwrap();
+    let orders = repositoy::get_orders(&client, &search).await.unwrap();
     Json(orders)
 }
 
 #[get("/<order_id>")]
 async fn get_order_by_id(pool: &State<Pool>, order_id: String) -> Json<Order> {
-    let mut client = pool.get().await.unwrap();
-    let order = repositoy::get_order_by_id(&mut client, &order_id).await.unwrap();
+    let client = pool.get().await.unwrap();
+    let order = repositoy::get_order_by_id(&client, &order_id).await.unwrap();
     Json(order)
 }
 
@@ -47,12 +47,14 @@ async fn get_order_by_id(pool: &State<Pool>, order_id: String) -> Json<Order> {
 async fn rocket() -> _ {
     dotenv().ok();
 
-    let mut cfg = Config::new();
-    cfg.dbname = Some("postgres".to_string());
-    cfg.host = env::var("DB_HOST").ok();
-    cfg.user = env::var("DB_USER").ok();
-    cfg.password = env::var("DB_PASSWORD").ok();
-    cfg.manager = Some(ManagerConfig { recycling_method: RecyclingMethod::Fast });
+    let cfg = Config {
+        dbname: Some("postgres".to_string()),
+        host: env::var("DB_HOST").ok(),
+        user: env::var("DB_USER").ok(),
+        password: env::var("DB_PASSWORD").ok(),
+        manager: Some(ManagerConfig { recycling_method: RecyclingMethod::Fast }),
+        ..Config::new()
+    };
     let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
     rocket::build()
         .manage(pool)
