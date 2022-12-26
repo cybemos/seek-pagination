@@ -1,4 +1,4 @@
-use crate::models::{OrderSearch, Order, Orders, Error, Result};
+use crate::models::{OrderSearch, Order, Orders, Error, Result, OrderId};
 use deadpool_postgres::Object as Client;
 use tokio_postgres::Row;
 use chrono::{DateTime, Utc};
@@ -62,7 +62,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
     Ok(Orders { orders, previous_token, next_token })
 }
 
-pub async fn get_order_by_id(client: &Client, id: &String) -> Result<Order> {
+pub async fn get_order_by_id(client: &Client, id: &OrderId) -> Result<Order> {
     let row = client.query_one(GET_ORDER_BY_ID_QUERY,  &[&id]).await.map_err(|err| Error::DB(err))?;
     let order = row_to_order(&row);
     Ok(order)

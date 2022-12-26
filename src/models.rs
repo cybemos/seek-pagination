@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -7,6 +8,8 @@ pub enum Error {
     DB(tokio_postgres::Error),
     Pool(deadpool_postgres::PoolError)
 }
+
+pub type OrderId = String;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Orders {
@@ -17,9 +20,9 @@ pub struct Orders {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Order {
-    pub id: String,
-    pub creation_date: chrono::DateTime<chrono::Utc>,
-    pub update_date: chrono::DateTime<chrono::Utc>,
+    pub id: OrderId,
+    pub creation_date: DateTime<Utc>,
+    pub update_date: DateTime<Utc>,
 }
 
 #[derive(FromForm, Debug)]
