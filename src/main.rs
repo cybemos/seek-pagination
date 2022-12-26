@@ -1,40 +1,47 @@
-mod repositoy;
 mod models;
+mod repositoy;
 
-use rocket::serde::json::Json;
-use rocket::State;
 use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
-use tokio_postgres::NoTls;
-use models::{OrderSearch, Order, Orders, Result, Error};
 use dotenv::dotenv;
-use std::{env, path::PathBuf};
+use models::{Error, Order, OrderSearch, Orders, Result};
 use rocket::fs::NamedFile;
-use std::path::Path;
-use std::io::Cursor;
+use rocket::http::ContentType;
 use rocket::http::Status;
 use rocket::request::Request;
-use rocket::response::{self, Response, Responder};
-use rocket::http::ContentType;
+use rocket::response::{self, Responder, Response};
+use rocket::serde::json::Json;
+use rocket::State;
+use std::io::Cursor;
+use std::path::Path;
+use std::{env, path::PathBuf};
+use tokio_postgres::NoTls;
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
 #[get("/")]
 async fn index() -> Option<NamedFile> {
     NamedFile::open(Path::new("public/index.html")).await.ok()
 }
 
-#[get("/<file..>",  rank = 2)]
+#[get("/<file..>", rank = 2)]
 async fn files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("public/").join(file)).await.ok()
 }
 
 #[get("/?<previous_token>&<next_token>&<offset>&<limit>")]
-async fn get_orders(pool: &State<Pool>, previous_token: Option<String>, next_token: Option<String>, offset: Option<i32>, limit: Option<i32>) -> Result<Json<Orders>> {
+async fn get_orders(
+    pool: &State<Pool>,
+    previous_token: Option<String>,
+    next_token: Option<String>,
+    offset: Option<i32>,
+    limit: Option<i32>,
+) -> Result<Json<Orders>> {
     let search = OrderSearch {
         previous_token,
         next_token,
         offset: offset.unwrap_or(0),
-        limit: limit.unwrap_or(10)
+        limit: limit.unwrap_or(10),
     };
     let client = pool.get().await.map_err(|err| Error::Pool(err))?;
     let orders = repositoy::get_orders(&client, &search).await?;
@@ -52,7 +59,7 @@ impl<'r> Responder<'r, 'static> for Error {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         let (status, content) = match self {
             Error::DB(_) => (Status::InternalServerError, "db error"),
-            Error::Pool(_) =>  (Status::InternalServerError, "pool error"),
+            Error::Pool(_) => (Status::InternalServerError, "pool error"),
         };
         let json = serde_json::json!(content).to_string();
         Response::build()
@@ -72,7 +79,9 @@ async fn rocket() -> _ {
         host: env::var("DB_HOST").ok(),
         user: env::var("DB_USER").ok(),
         password: env::var("DB_PASSWORD").ok(),
-        manager: Some(ManagerConfig { recycling_method: RecyclingMethod::Fast }),
+        manager: Some(ManagerConfig {
+            recycling_method: RecyclingMethod::Fast,
+        }),
         ..Config::new()
     };
     let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();

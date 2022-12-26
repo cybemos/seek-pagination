@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
     DB(tokio_postgres::Error),
-    Pool(deadpool_postgres::PoolError)
+    Pool(deadpool_postgres::PoolError),
 }
 
 pub type OrderId = String;
