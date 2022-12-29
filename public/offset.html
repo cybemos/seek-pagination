@@ -13,21 +13,19 @@
     </style>
     <script src="scripts/client.js"></script>
     <script>
-        let previous_token, next_token, page = 1;
+        let page = 1;
         function fetchAndShowOrders(a) {
             const params = { limit: 20 };
-            if (previous_token && a === 'previous') {
-                params.previous_token = previous_token;
+            if (a === 'previous') {
                 page -= 1;
+                params.offset = params.limit * (page - 1);
             }
-            if (next_token && a === 'next') {
-                params.next_token = next_token;
+            if (a === 'next') {
                 page += 1;
+                params.offset = params.limit * (page - 1);
             }
             fetchOrders(params)
                 .then(response => {
-                    previous_token = response.previous_token;
-                    next_token = response.next_token;
                     let pageNode = document.getElementById("page");
                     pageNode.textContent = `page ${page}`;
                     let previousNode = document.getElementById("previous");
