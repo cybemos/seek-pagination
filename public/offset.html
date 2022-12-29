@@ -2,6 +2,7 @@
     <h1>Orders</h1>
     <button id="previous" disabled onclick="fetchAndShowOrders('previous')">Previous orders</button>
     <button id="next" onclick="fetchAndShowOrders('next')">Next orders</button>
+    <button onclick="fetchAndShowOrders('next', 100)">+ 100 pages</button>
     <div id="page">Page 1</div>
     <table id="orders"></table>
     <style>
@@ -14,16 +15,15 @@
     <script src="scripts/client.js"></script>
     <script>
         let page = 1;
-        function fetchAndShowOrders(a) {
+        function fetchAndShowOrders(a, inc = 0) {
             const params = { limit: 20 };
             if (a === 'previous') {
-                page -= 1;
-                params.offset = params.limit * (page - 1);
+                page -= inc || 1;
             }
             if (a === 'next') {
-                page += 1;
-                params.offset = params.limit * (page - 1);
+                page += inc || 1;
             }
+            params.offset = params.limit * (page - 1);
             fetchOrders(params)
                 .then(response => {
                     let pageNode = document.getElementById("page");
