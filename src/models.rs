@@ -1,5 +1,6 @@
 use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
+use tokio_postgres::Row;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -45,6 +46,16 @@ pub struct Order {
     pub update_date: DateTime<Utc>,
 }
 
+impl From<&Row> for Order {
+    fn from(row: &Row) -> Self {
+        return Order {
+            id: row.get(0),
+            creation_date: row.get(1),
+            update_date: row.get(2),
+        };
+    }
+}
+
 #[derive(Debug)]
 pub struct OrderSearch {
     pub previous_token: Option<Token>,
@@ -57,6 +68,21 @@ pub struct OrderSearch {
 pub struct Token {
     pub id: String,
     pub creation_date: DateTime<Utc>,
+}
+
+impl From<&Order> for Token {
+    fn from(order: &Order) -> Self {
+        Token {
+            id: order.id.clone(),
+            creation_date: order.creation_date,
+        }
+    }
+}
+
+impl Into<String> for Token {
+    fn into(self) -> String {
+        self.id + &"#" + &self.creation_date.to_rfc3339()
+    }
 }
 
 impl TryFrom<String> for Token {
