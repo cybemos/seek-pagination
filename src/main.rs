@@ -43,14 +43,14 @@ async fn get_orders(
         offset: offset.unwrap_or(0),
         limit: limit.unwrap_or(10),
     };
-    let client = pool.get().await.map_err(|err| Error::Pool(err))?;
+    let client = pool.get().await?;
     let orders = repositoy::get_orders(&client, &search).await?;
     Ok(Json(orders))
 }
 
 #[get("/<order_id>")]
 async fn get_order_by_id(pool: &State<Pool>, order_id: String) -> Result<Json<Order>> {
-    let client = pool.get().await.map_err(|err| Error::Pool(err))?;
+    let client = pool.get().await?;
     let order = repositoy::get_order_by_id(&client, &order_id).await?;
     Ok(Json(order))
 }

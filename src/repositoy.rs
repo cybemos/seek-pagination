@@ -1,4 +1,4 @@
-use crate::models::{Error, Order, OrderId, OrderSearch, Orders, Result};
+use crate::models::{Order, OrderId, OrderSearch, Orders, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Object as Client;
 use tokio_postgres::Row;
@@ -30,10 +30,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
     let orders = match &search.next_token {
         None => match &search.previous_token {
             None => {
-                let rows = client
-                    .query(GET_ORDERS_QUERY, &[&offset, &limit])
-                    .await
-                    .map_err(|err| Error::DB(err))?;
+                let rows = client.query(GET_ORDERS_QUERY, &[&offset, &limit]).await?;
                 let orders = rows.iter().map(|row| row_to_order(row)).collect::<Vec<_>>();
                 orders
             }
@@ -44,8 +41,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
                         GET_ORDERS_QUERY2,
                         &[&offset, &limit, &last_order.creation_date, &last_order.id],
                     )
-                    .await
-                    .map_err(|err| Error::DB(err))?;
+                    .await?;
                 let orders = rows
                     .iter()
                     .rev()
@@ -61,8 +57,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
                     GET_ORDERS_QUERY1,
                     &[&offset, &limit, &last_order.creation_date, &last_order.id],
                 )
-                .await
-                .map_err(|err| Error::DB(err))?;
+                .await?;
             let orders = rows.iter().map(|row| row_to_order(row)).collect::<Vec<_>>();
             orders
         }
@@ -80,10 +75,7 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
 }
 
 pub async fn get_order_by_id(client: &Client, id: &OrderId) -> Result<Order> {
-    let row = client
-        .query_one(GET_ORDER_BY_ID_QUERY, &[&id])
-        .await
-        .map_err(|err| Error::DB(err))?;
+    let row = client.query_one(GET_ORDER_BY_ID_QUERY, &[&id]).await?;
     let order = row_to_order(&row);
     Ok(order)
 }

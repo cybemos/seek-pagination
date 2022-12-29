@@ -9,6 +9,18 @@ pub enum Error {
     Pool(deadpool_postgres::PoolError),
 }
 
+impl From<tokio_postgres::Error> for Error {
+    fn from(error: tokio_postgres::Error) -> Self {
+        Error::DB(error)
+    }
+}
+
+impl From<deadpool_postgres::PoolError> for Error {
+    fn from(error: deadpool_postgres::PoolError) -> Self {
+        Error::Pool(error)
+    }
+}
+
 pub type OrderId = String;
 
 #[derive(Debug, Serialize, Deserialize)]
