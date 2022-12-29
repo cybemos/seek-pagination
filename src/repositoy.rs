@@ -1,4 +1,4 @@
-use crate::models::{Order, OrderId, OrderSearch, Orders, Result};
+use crate::models::{Order, OrderId, OrderSearch, Orders, Result, Token};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Object as Client;
 use tokio_postgres::Row;
@@ -28,13 +28,17 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
     let orders = match &search.next_token {
         None => match &search.previous_token {
             None => get_orders_without_token(client, search).await?,
-            Some(id) => get_orders_by_previous_token(client, id, search).await?,
+            Some(token) => get_orders_by_previous_token(client, token, search).await?,
         },
-        Some(id) => get_orders_by_next_token(client, id, search).await?,
+        Some(token) => get_orders_by_next_token(client, token, search).await?,
     };
-    let previous_token = orders.first().map(|order| order.id.clone());
+    let previous_token = orders
+        .first()
+        .map(|order| order.id.clone() + &"#" + &order.creation_date.to_rfc3339());
     let next_token = match search.limit >= orders.len() as i32 {
-        true => orders.last().map(|order| order.id.clone()),
+        true => orders
+            .last()
+            .map(|order| order.id.clone() + &"#" + &order.creation_date.to_rfc3339()),
         false => None,
     };
     Ok(Orders {
@@ -46,16 +50,15 @@ pub async fn get_orders(client: &Client, search: &OrderSearch) -> Result<Orders>
 
 async fn get_orders_by_next_token(
     client: &Client,
-    token: &String,
+    token: &Token,
     search: &OrderSearch,
 ) -> Result<Vec<Order>> {
     let offset = search.offset as i64;
     let limit = search.limit as i64;
-    let last_order = get_order_by_id(client, token).await?;
     let rows = client
         .query(
             GET_ORDERS_QUERY1,
-            &[&offset, &limit, &last_order.creation_date, &last_order.id],
+            &[&offset, &limit, &token.creation_date, &token.id],
         )
         .await?;
     let orders = rows.iter().map(|row| row_to_order(row)).collect::<Vec<_>>();
@@ -64,16 +67,15 @@ async fn get_orders_by_next_token(
 
 async fn get_orders_by_previous_token(
     client: &Client,
-    token: &String,
+    token: &Token,
     search: &OrderSearch,
 ) -> Result<Vec<Order>> {
     let offset = search.offset as i64;
     let limit = search.limit as i64;
-    let last_order = get_order_by_id(client, token).await?;
     let rows = client
         .query(
             GET_ORDERS_QUERY2,
-            &[&offset, &limit, &last_order.creation_date, &last_order.id],
+            &[&offset, &limit, &token.creation_date, &token.id],
         )
         .await?;
     let orders = rows

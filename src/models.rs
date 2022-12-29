@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, ParseError, Utc};
 use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -7,6 +7,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     DB(tokio_postgres::Error),
     Pool(deadpool_postgres::PoolError),
+    ChonoParse(ParseError),
+    Parse(String),
 }
 
 impl From<tokio_postgres::Error> for Error {
@@ -18,6 +20,12 @@ impl From<tokio_postgres::Error> for Error {
 impl From<deadpool_postgres::PoolError> for Error {
     fn from(error: deadpool_postgres::PoolError) -> Self {
         Error::Pool(error)
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(error: ParseError) -> Self {
+        Error::ChonoParse(error)
     }
 }
 
@@ -37,10 +45,30 @@ pub struct Order {
     pub update_date: DateTime<Utc>,
 }
 
-#[derive(FromForm, Debug)]
+#[derive(Debug)]
 pub struct OrderSearch {
-    pub previous_token: Option<String>,
-    pub next_token: Option<String>,
+    pub previous_token: Option<Token>,
+    pub next_token: Option<Token>,
     pub offset: i32,
     pub limit: i32,
+}
+
+#[derive(Debug)]
+pub struct Token {
+    pub id: String,
+    pub creation_date: DateTime<Utc>,
+}
+
+impl TryFrom<String> for Token {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self> {
+        let index = value
+            .find('#')
+            .ok_or(Error::Parse("invalid token : ".to_string() + &value))?;
+        Ok(Token {
+            id: value[..index].to_string(),
+            creation_date: DateTime::parse_from_rfc3339(&value[(index + 1)..])?.into(),
+        })
+    }
 }

@@ -3,7 +3,7 @@ mod repositoy;
 
 use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
 use dotenv::dotenv;
-use models::{Error, Order, OrderSearch, Orders, Result};
+use models::{Error, Order, OrderSearch, Orders, Result, Token};
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
 use rocket::http::Status;
@@ -13,6 +13,7 @@ use rocket::serde::json::Json;
 use rocket::State;
 use std::io::Cursor;
 use std::path::Path;
+use std::time::Instant;
 use std::{env, path::PathBuf};
 use tokio_postgres::NoTls;
 
@@ -37,15 +38,29 @@ async fn get_orders(
     offset: Option<i32>,
     limit: Option<i32>,
 ) -> Result<Json<Orders>> {
+    let start = Instant::now();
     let search = OrderSearch {
-        previous_token,
-        next_token,
+        previous_token: map_token(previous_token)?,
+        next_token: map_token(next_token)?,
         offset: offset.unwrap_or(0),
         limit: limit.unwrap_or(10),
     };
     let client = pool.get().await?;
     let orders = repositoy::get_orders(&client, &search).await?;
+    let duration = start.elapsed();
+    println!(
+        "Time elapsed in repositoy::get_orders({:?}) is: {:?}",
+        search, duration
+    );
     Ok(Json(orders))
+}
+
+fn map_token(token: Option<String>) -> Result<Option<Token>> {
+    let result = match token {
+        Some(t) => Some(Token::try_from(t)?),
+        None => None,
+    };
+    Ok(result)
 }
 
 #[get("/<order_id>")]
@@ -60,8 +75,11 @@ impl<'r> Responder<'r, 'static> for Error {
         let (status, content) = match self {
             Error::DB(_) => (Status::InternalServerError, "db error"),
             Error::Pool(_) => (Status::InternalServerError, "pool error"),
+            Error::ChonoParse(_) => (Status::BadRequest, "unable to parse"),
+            Error::Parse(_) => (Status::BadRequest, "unable to parse"),
         };
         let json = serde_json::json!(content).to_string();
+        println!("error: {:?}", self);
         Response::build()
             .header(ContentType::JSON)
             .status(status)
