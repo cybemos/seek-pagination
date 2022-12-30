@@ -1,5 +1,5 @@
 mod models;
-mod repositoy;
+mod repository;
 
 use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
 use dotenv::dotenv;
@@ -57,14 +57,14 @@ async fn get_orders(
         limit: limit.unwrap_or(10),
     };
     time_elapsed!("get_client", let client = pool.get().await?);
-    time_elapsed!("repositoy::get_orders", let orders = repositoy::get_orders(&client, &search).await?);
+    time_elapsed!("repository::get_orders", let orders = repository::get_orders(&client, &search).await?);
     Ok(Json(orders))
 }
 
 #[get("/<order_id>")]
 async fn get_order_by_id(pool: &State<Pool>, order_id: String) -> Result<Json<Order>> {
     let client = pool.get().await?;
-    time_elapsed!("repositoy::get_order_by_id", let order = repositoy::get_order_by_id(&client, &order_id).await?);
+    time_elapsed!("repository::get_order_by_id", let order = repository::get_order_by_id(&client, &order_id).await?);
     Ok(Json(order))
 }
 
