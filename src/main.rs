@@ -20,6 +20,14 @@ use tokio_postgres::NoTls;
 #[macro_use]
 extern crate rocket;
 
+macro_rules! time_elapsed {
+    ($context:literal, $b:stmt) => {
+        let timer = Instant::now();
+        $b
+        println!("time elapsed for {}: {:?}", $context, timer.elapsed());
+    };
+}
+
 #[get("/")]
 async fn index() -> Option<NamedFile> {
     NamedFile::open(Path::new("public/index.html")).await.ok()
@@ -38,20 +46,14 @@ async fn get_orders(
     offset: Option<i32>,
     limit: Option<i32>,
 ) -> Result<Json<Orders>> {
-    let start = Instant::now();
     let search = OrderSearch {
         previous_token: map_token(previous_token)?,
         next_token: map_token(next_token)?,
         offset: offset.unwrap_or(0),
         limit: limit.unwrap_or(10),
     };
-    let client = pool.get().await?;
-    let orders = repositoy::get_orders(&client, &search).await?;
-    let duration = start.elapsed();
-    println!(
-        "Time elapsed in repositoy::get_orders({:?}) is: {:?}",
-        search, duration
-    );
+    time_elapsed!("get_client", let client = pool.get().await?);
+    time_elapsed!("repositoy::get_orders", let orders = repositoy::get_orders(&client, &search).await?);
     Ok(Json(orders))
 }
 
@@ -66,7 +68,7 @@ fn map_token(token: Option<String>) -> Result<Option<Token>> {
 #[get("/<order_id>")]
 async fn get_order_by_id(pool: &State<Pool>, order_id: String) -> Result<Json<Order>> {
     let client = pool.get().await?;
-    let order = repositoy::get_order_by_id(&client, &order_id).await?;
+    time_elapsed!("repositoy::get_order_by_id", let order = repositoy::get_order_by_id(&client, &order_id).await?);
     Ok(Json(order))
 }
 
