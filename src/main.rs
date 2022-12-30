@@ -21,9 +21,9 @@ use tokio_postgres::NoTls;
 extern crate rocket;
 
 macro_rules! time_elapsed {
-    ($context:literal, $b:stmt) => {
+    ($context:literal, $s:stmt) => {
         let timer = Instant::now();
-        $b
+        $s
         println!("time elapsed for {}: {:?}", $context, timer.elapsed());
     };
 }
@@ -47,22 +47,18 @@ async fn get_orders(
     limit: Option<i32>,
 ) -> Result<Json<Orders>> {
     let search = OrderSearch {
-        previous_token: map_token(previous_token)?,
-        next_token: map_token(next_token)?,
+        previous_token: previous_token
+            .map(|t| Token::try_from(t))
+            .map_or(Ok(None), |v| v.map(Some))?,
+        next_token: next_token
+            .map(|t| Token::try_from(t))
+            .map_or(Ok(None), |v| v.map(Some))?,
         offset: offset.unwrap_or(0),
         limit: limit.unwrap_or(10),
     };
     time_elapsed!("get_client", let client = pool.get().await?);
     time_elapsed!("repositoy::get_orders", let orders = repositoy::get_orders(&client, &search).await?);
     Ok(Json(orders))
-}
-
-fn map_token(token: Option<String>) -> Result<Option<Token>> {
-    let result = match token {
-        Some(t) => Some(Token::try_from(t)?),
-        None => None,
-    };
-    Ok(result)
 }
 
 #[get("/<order_id>")]
